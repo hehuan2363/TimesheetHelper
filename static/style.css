@@ -529,6 +529,10 @@ body.calendar-selecting {
     overflow-y: auto;
 }
 
+.modal-backdrop[hidden] {
+    display: none !important;
+}
+
 .modal {
     background: #ffffff;
     border-radius: 12px;

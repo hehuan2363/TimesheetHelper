@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     modalBackdrop.hidden = true;
-    modalBackdrop.setAttribute("hidden", "");
+    modalBackdrop.setAttribute("hidden", "hidden");
     document.body.classList.remove("modal-open");
     if (resetFormState) {
       clearForm();
