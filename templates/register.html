@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Register · Timesheet Helper{% endblock %}
+{% block content %}
+<section class="card auth-card">
+    <h1>Create Account</h1>
+    <form method="post" class="form-grid">
+        <label>
+            Name
+            <input type="text" name="name" required autofocus>
+        </label>
+        <label>
+            Email
+            <input type="email" name="email" required>
+        </label>
+        <label>
+            Password
+            <input type="password" name="password" required minlength="6">
+        </label>
+        <button type="submit" class="btn primary">Register</button>
+    </form>
+    <p class="muted">
+        Already registered?
+        <a href="{{ url_for('login') }}">Sign in</a>.
+    </p>
+</section>
+{% endblock %}

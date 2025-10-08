@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Timesheet Helper{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="app-header">
+    <nav class="nav-bar">
+        <div class="brand">
+            <a href="{{ url_for('dashboard') }}">Timesheet Helper</a>
+        </div>
+        <div class="nav-links">
+            {% if g.user %}
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('charge_codes') }}">Charge Codes</a>
+            <span class="user-name">{{ g.user['name'] }}</span>
+            <a href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
+            <a href="{{ url_for('register') }}">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+</header>
+<main class="app-container">
+    {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+    <ul class="flash-messages">
+        {% for category, message in messages %}
+        <li class="flash {{ category }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+    <div class="toast" id="toast" hidden></div>
+    {% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='main.js') }}" defer></script>
+</body>
+</html>

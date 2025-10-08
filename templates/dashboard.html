@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Timesheet Helper{% endblock %}
+{% block content %}
+<section class="card">
+    <header class="card-header">
+        <div>
+            <h1>Week of {{ week_start.strftime('%b %d, %Y') }} – {{ week_end.strftime('%b %d, %Y') }}</h1>
+            <p class="muted">Thursday to Wednesday reporting window.</p>
+        </div>
+        <div class="week-nav">
+            <a class="btn secondary" href="{{ url_for('dashboard', date=prev_week.isoformat()) }}">&larr; Previous</a>
+            <a class="btn secondary" href="{{ url_for('dashboard', date=today.isoformat()) }}">Today</a>
+            <a class="btn secondary" href="{{ url_for('dashboard', date=next_week.isoformat()) }}">Next &rarr;</a>
+        </div>
+    </header>
+</section>
+
+<section class="card calendar-card">
+    <header class="calendar-header">
+        <h2>Week Calendar</h2>
+        <button type="button"
+                class="btn primary"
+                id="add-entry-button"
+                {% if not charge_codes %}disabled{% endif %}>
+            ＋ Entry
+        </button>
+    </header>
+    {% if charge_codes %}
+        <div class="calendar-scroll">
+            <div class="calendar-headings">
+                <div class="spacer"></div>
+                {% for day in week_days %}
+                <div class="calendar-day-heading">
+                    <span class="day-name">{{ day.strftime('%A') }}</span>
+                    <span class="day-date">{{ day.strftime('%b %d') }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="calendar-grid" data-interval="{{ calendar_slot_minutes }}" style="--slot-height: {{ slot_height }}px;">
+                <div class="time-labels" style="grid-template-rows: repeat({{ slot_count }}, var(--slot-height));">
+                    {% for minute in time_slots %}
+                    <div class="time-label">
+                        {% if minute % 60 == 0 %}
+                        {{ minute|minutes_to_ampm }}
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% for day in week_days %}
+                {% set day_key = day.isoformat() %}
+                <div class="calendar-day" data-date="{{ day_key }}">
+                    <div class="calendar-body" style="--slot-count: {{ slot_count }};">
+                        <div class="slot-column" style="grid-template-rows: repeat({{ slot_count }}, var(--slot-height));">
+                            {% for minute in time_slots %}
+                            <div class="time-slot {% if minute % 60 == 0 %}hour{% endif %}"
+                                 data-date="{{ day_key }}"
+                                 data-minute="{{ minute }}"
+                                 data-time-label="{{ minute|minutes_to_label }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="entries-layer">
+                            {% for entry in calendar_entries.get(day_key, []) %}
+                            <article class="entry-block"
+                                     style="top: calc(var(--slot-height) * {{ (entry.start_minutes / calendar_slot_minutes)|round(4) }}); height: calc(var(--slot-height) * {{ (entry.duration_minutes / calendar_slot_minutes)|round(4) }});"
+                                     title="{{ entry.start_time }} - {{ entry.end_time }} · {{ entry.activity_text }}">
+                                <header>
+                                    <span class="time-range">{{ entry.start_time }} – {{ entry.end_time }}</span>
+                                    <span class="hours">{{ (entry.duration_minutes / 60)|round(2) }} h</span>
+                                </header>
+                                <div class="charge">{{ entry.charge_code_label }}</div>
+                                <p class="activity">{{ entry.activity_text }}</p>
+                                <footer class="entry-actions">
+                                    <button type="button"
+                                            class="btn small edit-entry"
+                                            data-entry-id="{{ entry.id }}"
+                                            data-entry-date="{{ entry.entry_date }}"
+                                            data-start-time="{{ entry.start_time }}"
+                                            data-end-time="{{ entry.end_time }}"
+                                            data-charge-code-id="{{ entry.charge_code_id }}"
+                                            data-activity-text="{{ entry.activity_text }}">
+                                        Edit
+                                    </button>
+                                    <form method="post"
+                                          action="{{ url_for('delete_entry', entry_id=entry.id) }}">
+                                        <input type="hidden" name="anchor_date" value="{{ (anchor_date or week_start).isoformat() }}">
+                                        <button type="submit" class="btn small danger">Delete</button>
+                                    </form>
+                                </footer>
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+    <p class="muted">
+        Add a charge code before logging time.
+        <a href="{{ url_for('charge_codes') }}">Manage charge codes</a>.
+    </p>
+    {% endif %}
+</section>
+
+<div class="modal-backdrop" id="entry-modal" hidden>
+    <div class="modal">
+        <header class="modal-header">
+            <h3 id="modal-title">Time Entry</h3>
+            <button type="button" class="icon-btn" id="entry-close" aria-label="Close">✕</button>
+        </header>
+        <div class="modal-body">
+            <form id="entry-form" action="{{ url_for('save_entry') }}" method="post" class="form-grid">
+                <input type="hidden" name="entry_id" id="entry-id">
+                <input type="hidden" name="anchor_date" value="{{ (anchor_date or week_start).isoformat() }}">
+                <label>
+                    Date
+                    <select name="entry_date" id="entry-date" required>
+                        {% for day in week_days %}
+                        <option value="{{ day.isoformat() }}"
+                            {% if (anchor_date or week_start) == day %}selected{% endif %}>
+                            {{ day.strftime('%a %b %d') }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    Start Time
+                    <input type="time" name="start_time" id="start-time" value="09:00" required>
+                </label>
+                <label>
+                    End Time
+                    <input type="time" name="end_time" id="end-time" value="17:00" required>
+                </label>
+                <label>
+                    Charge Code
+                    <select name="charge_code_id" id="charge-code" required>
+                        <option value="" disabled selected>Select a charge code</option>
+                        {% for code in charge_codes %}
+                        <option value="{{ code['id'] }}">
+                            {{ code['project_number'] }}-{{ code['task_number'] }} {{ code['description'] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="full-width">
+                    Activity
+                    <textarea name="activity_text" id="activity-text" rows="3" required></textarea>
+                </label>
+                <div class="form-actions">
+                    <button type="submit" class="btn primary" id="entry-submit">Save Entry</button>
+                    <button type="button" class="btn secondary" id="entry-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<section class="card overview-card">
+    <h2>Oracle Overview</h2>
+    {% if overview.rows %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Charge Code</th>
+                    {% for day in week_days %}
+                    <th>{{ day.strftime('%a %m/%d') }}</th>
+                    {% endfor %}
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in overview.rows %}
+                <tr>
+                    <td class="charge-label">{{ row.label }}</td>
+                    {% for day in week_days %}
+                    {% set day_key = day.isoformat() %}
+                    {% set cell = row.cells[day_key] %}
+                    <td>
+                        <div class="hours">{{ cell.hours }}</div>
+                        <div class="cell-actions">
+                            <button type="button"
+                                    class="icon-btn comment-toggle"
+                                    title="Show activity notes"
+                                    data-comments="{{ cell.comments|join(' | ') }}">
+                                🗒️
+                            </button>
+                            <button type="button"
+                                    class="icon-btn copy-cell"
+                                    title="Copy charge code total"
+                                    data-copy-text="{{ row.label }} {{ day.strftime('%a %m/%d') }} {{ cell.hours }}">
+                                📋
+                            </button>
+                        </div>
+                    </td>
+                    {% endfor %}
+                    <td class="total">{{ row.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th>Total</th>
+                    {% for day in week_days %}
+                    <th>{{ overview.day_totals[day.isoformat()] }}</th>
+                    {% endfor %}
+                    <th>{{ overview.week_total }}</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    <div class="comment-drawer" id="comment-panel" hidden>
+        <div class="comment-drawer-header">
+            <h3>Notes</h3>
+            <button type="button" class="btn small tertiary" id="comment-close">Close</button>
+        </div>
+        <div class="comment-drawer-body" id="comment-content"></div>
+    </div>
+    {% else %}
+    <p class="muted">No time entries this week yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

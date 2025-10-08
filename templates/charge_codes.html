@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Charge Codes · Timesheet Helper{% endblock %}
+{% block content %}
+<section class="card">
+    <h1>Charge Codes</h1>
+    <form method="post" class="form-grid">
+        <label>
+            Project Number
+            <input type="text" name="project_number" required>
+        </label>
+        <label>
+            Task Number
+            <input type="text" name="task_number" required>
+        </label>
+        <label>
+            Description
+            <input type="text" name="description" required>
+        </label>
+        <button type="submit" class="btn primary">Add Charge Code</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Saved Codes</h2>
+    {% if charge_codes %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Project</th>
+                <th>Task</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for code in charge_codes %}
+            <tr>
+                <td>{{ code['project_number'] }}</td>
+                <td>{{ code['task_number'] }}</td>
+                <td>{{ code['description'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No charge codes yet. Add your first code above.</p>
+    {% endif %}
+</section>
+{% endblock %}
