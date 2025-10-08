@@ -490,6 +490,10 @@ body.calendar-selecting {
     margin-top: 0.35rem;
 }
 
+.cell-actions.hidden {
+    display: none;
+}
+
 .inline-form {
     display: inline;
 }

@@ -185,11 +185,12 @@
                     {% set cell = row.cells[day_key] %}
                     <td>
                         <div class="hours">{{ cell.hours }}</div>
-                        <div class="cell-actions">
+                        <div class="cell-actions{% if not cell.hours %} hidden{% endif %}">
                             <button type="button"
                                     class="icon-btn comment-toggle"
                                     title="View activity details"
                                     data-comments='{{ cell.comments | tojson | e }}'
+                                    data-details='{{ cell.details | tojson | e }}'
                                     data-day-label="{{ day.strftime('%a %m/%d') }}"
                                     data-charge-label="{{ row.label }}">
                                 <img src="{{ url_for('static', filename='icons/view.svg') }}" alt="View" class="icon-img">

@@ -771,12 +771,27 @@ def build_week_overview(entries: List[EntryDTO], week_start: date, week_end: dat
     for entry in entries:
         label = entry.charge_code_label
         per_charge = overview.setdefault(
-            label, {day: {"hours": 0.0, "comments": []} for day in days}
+            label,
+            {
+                day: {
+                    "hours": 0.0,
+                    "comments": [],
+                    "details": [],
+                }
+                for day in days
+            },
         )
         per_day = per_charge[entry.entry_date]
         hours = entry.duration_minutes / 60
         per_day["hours"] += hours
         per_day["comments"].append(entry.activity_text)
+        per_day["details"].append(
+            {
+                "start_time": entry.start_time,
+                "end_time": entry.end_time,
+                "activity_text": entry.activity_text,
+            }
+        )
         day_totals[entry.entry_date] += hours
 
     rows = []
@@ -788,6 +803,7 @@ def build_week_overview(entries: List[EntryDTO], week_start: date, week_end: dat
             cells[day] = {
                 "hours": round(info["hours"], 2),
                 "comments": info["comments"],
+                "details": info["details"],
             }
         total_hours = round(sum(cell["hours"] for cell in cells.values()), 2)
         rows.append({"label": label, "cells": cells, "total": total_hours})

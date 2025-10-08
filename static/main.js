@@ -369,7 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const openNotesModal = (title, lines) => {
+  const openNotesModal = (title, details) => {
     if (!notesModal || !notesContent) {
       return;
     }
@@ -377,15 +377,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (notesTitle) {
       notesTitle.textContent = title || "Activity Notes";
     }
-    if (!lines || lines.length === 0) {
+    if (!details || details.length === 0) {
       const div = document.createElement("div");
       div.className = "empty";
       div.textContent = "No activity notes recorded.";
       notesContent.appendChild(div);
     } else {
-      lines.forEach((line) => {
+      details.forEach((item, index) => {
         const div = document.createElement("div");
-        div.textContent = line;
+        const label = `${index + 1}.`;
+        const range = item.start_time && item.end_time ? `${item.start_time} – ${item.end_time}` : "";
+        const text = item.activity_text || "";
+        div.textContent = [label, range, text].filter(Boolean).join("  ");
         notesContent.appendChild(div);
       });
     }
@@ -438,6 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const comments = button.dataset.comments || "";
+      const detailsRaw = button.dataset.details || "";
       let lines = [];
       if (comments) {
         try {
@@ -452,10 +456,25 @@ document.addEventListener("DOMContentLoaded", () => {
             .filter(Boolean);
         }
       }
+      let details = [];
+      if (detailsRaw) {
+        try {
+          const parsedDetails = JSON.parse(detailsRaw);
+          if (Array.isArray(parsedDetails)) {
+            details = parsedDetails.map((item) => ({
+              start_time: item.start_time,
+              end_time: item.end_time,
+              activity_text: item.activity_text,
+            }));
+          }
+        } catch (error) {
+          details = lines.map((text) => ({ start_time: "", end_time: "", activity_text: text }));
+        }
+      }
       const dayLabel = button.dataset.dayLabel || "";
       const chargeLabel = button.dataset.chargeLabel || "";
       const modalHeader = [chargeLabel, dayLabel].filter(Boolean).join(" · ") || "Activity Notes";
-      openNotesModal(modalHeader, lines);
+      openNotesModal(modalHeader, details.length ? details : lines);
     });
   });
 
