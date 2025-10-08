@@ -27,6 +27,14 @@
     </header>
     {% if charge_codes %}
         <div class="calendar-scroll">
+            <div class="charge-legend">
+                {% for code in charge_codes %}
+                <span class="legend-item">
+                    <span class="legend-swatch {{ code.color_class }}"></span>
+                    <span class="legend-label">{{ code.project_number }}-{{ code.task_number }} {{ code.description }}</span>
+                </span>
+                {% endfor %}
+            </div>
             <div class="calendar-headings">
                 <div class="spacer"></div>
                 {% for day in week_days %}
@@ -61,15 +69,13 @@
                         </div>
                         <div class="entries-layer">
                             {% for entry in calendar_entries.get(day_key, []) %}
-                            <article class="entry-block"
-                                     style="top: calc(var(--slot-height) * {{ (entry.start_minutes / calendar_slot_minutes)|round(4) }}); height: calc(var(--slot-height) * {{ (entry.duration_minutes / calendar_slot_minutes)|round(4) }});"
-                                     title="{{ entry.start_time }} - {{ entry.end_time }} · {{ entry.activity_text }}">
+                            <article class="entry-block {{ entry.color_class }}"
+                                     style="top: calc(var(--slot-height) * {{ (entry.relative_start_minutes / calendar_slot_minutes)|round(4) }}); height: calc(var(--slot-height) * {{ (entry.relative_duration_minutes / calendar_slot_minutes)|round(4) }});"
+                                     title="{{ entry.start_time }} - {{ entry.end_time }} · {{ entry.charge_code_label }} · {{ entry.activity_text }}">
                                 <header>
                                     <span class="time-range">{{ entry.start_time }} – {{ entry.end_time }}</span>
                                     <span class="hours">{{ (entry.duration_minutes / 60)|round(2) }} h</span>
                                 </header>
-                                <div class="charge">{{ entry.charge_code_label }}</div>
-                                <p class="activity">{{ entry.activity_text }}</p>
                                 <footer class="entry-actions">
                                     <button type="button"
                                             class="btn small edit-entry"
@@ -137,8 +143,8 @@
                     <select name="charge_code_id" id="charge-code" required>
                         <option value="" disabled selected>Select a charge code</option>
                         {% for code in charge_codes %}
-                        <option value="{{ code['id'] }}">
-                            {{ code['project_number'] }}-{{ code['task_number'] }} {{ code['description'] }}
+                        <option value="{{ code.id }}">
+                            {{ code.project_number }}-{{ code.task_number }} {{ code.description }}
                         </option>
                         {% endfor %}
                     </select>
@@ -182,15 +188,17 @@
                         <div class="cell-actions">
                             <button type="button"
                                     class="icon-btn comment-toggle"
-                                    title="Show activity notes"
-                                    data-comments="{{ cell.comments|join(' | ') }}">
-                                🗒️
+                                    title="View activity details"
+                                    data-comments='{{ cell.comments | tojson | e }}'
+                                    data-day-label="{{ day.strftime('%a %m/%d') }}"
+                                    data-charge-label="{{ row.label }}">
+                                <img src="{{ url_for('static', filename='icons/view.svg') }}" alt="View" class="icon-img">
                             </button>
                             <button type="button"
                                     class="icon-btn copy-cell"
-                                    title="Copy charge code total"
-                                    data-copy-text="{{ row.label }} {{ day.strftime('%a %m/%d') }} {{ cell.hours }}">
-                                📋
+                                    title="Copy activity"
+                                    data-copy-comments='{{ cell.comments | tojson | e }}'>
+                                <img src="{{ url_for('static', filename='icons/copy.svg') }}" alt="Copy" class="icon-img">
                             </button>
                         </div>
                     </td>
@@ -210,15 +218,20 @@
             </tfoot>
         </table>
     </div>
-    <div class="comment-drawer" id="comment-panel" hidden>
-        <div class="comment-drawer-header">
-            <h3>Notes</h3>
-            <button type="button" class="btn small tertiary" id="comment-close">Close</button>
-        </div>
-        <div class="comment-drawer-body" id="comment-content"></div>
-    </div>
     {% else %}
     <p class="muted">No time entries this week yet.</p>
     {% endif %}
 </section>
+
+<div class="modal-backdrop" id="notes-modal" hidden>
+    <div class="modal modal-notes">
+        <header class="modal-header">
+            <h3 id="notes-title">Activity Notes</h3>
+            <button type="button" class="icon-btn" id="notes-close" aria-label="Close">✕</button>
+        </header>
+        <div class="modal-body">
+            <div id="notes-content" class="notes-content"></div>
+        </div>
+    </div>
+</div>
 {% endblock %}

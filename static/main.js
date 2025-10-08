@@ -17,9 +17,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalClose = document.getElementById("entry-close");
   const modalTitle = document.getElementById("modal-title");
   const calendarGrid = document.querySelector(".calendar-grid");
-  const commentPanel = document.getElementById("comment-panel");
-  const commentContent = document.getElementById("comment-content");
-  const commentClose = document.getElementById("comment-close");
+  const notesModal = document.getElementById("notes-modal");
+  const notesTitle = document.getElementById("notes-title");
+  const notesContent = document.getElementById("notes-content");
+  const notesClose = document.getElementById("notes-close");
   const toast = document.getElementById("toast");
 
   const MAX_MINUTE = 23 * 60 + 59;
@@ -67,6 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
     modalBackdrop.hidden = true;
     modalBackdrop.setAttribute("hidden", "hidden");
     document.body.classList.remove("modal-open");
+    if (notesModal && !notesModal.hidden) {
+      document.body.classList.add("modal-open");
+    }
     if (resetFormState) {
       clearForm();
       setFormMode("new");
@@ -309,6 +313,12 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("blur", () => endSelection(false));
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
+        if (notesModal && !notesModal.hidden) {
+          closeNotesModal();
+          if (!modalBackdrop || modalBackdrop.hidden) {
+            return;
+          }
+        }
         if (modalBackdrop && !modalBackdrop.hidden) {
           closeModal();
           return;
@@ -318,49 +328,145 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   } else {
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && modalBackdrop && !modalBackdrop.hidden) {
-        closeModal();
+      if (event.key === "Escape") {
+        if (notesModal && !notesModal.hidden) {
+          closeNotesModal();
+          if (!modalBackdrop || modalBackdrop.hidden) {
+            return;
+          }
+        }
+        if (modalBackdrop && !modalBackdrop.hidden) {
+          closeModal();
+        }
       }
     });
   }
 
-  document.querySelectorAll(".copy-cell").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const text = button.dataset.copyText;
-      if (!text) return;
+  const copyToClipboard = async (text) => {
+    if (!text) return false;
+    if (navigator.clipboard && window.isSecureContext) {
       try {
         await navigator.clipboard.writeText(text);
-        showToast("Copied to clipboard");
+        return true;
       } catch (error) {
-        console.error("Copy failed:", error);
+        console.error("Clipboard write failed", error);
       }
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return success;
+    } catch (fallbackError) {
+      console.error("Fallback copy failed", fallbackError);
+      return false;
+    }
+  };
+
+  const openNotesModal = (title, lines) => {
+    if (!notesModal || !notesContent) {
+      return;
+    }
+    notesContent.innerHTML = "";
+    if (notesTitle) {
+      notesTitle.textContent = title || "Activity Notes";
+    }
+    if (!lines || lines.length === 0) {
+      const div = document.createElement("div");
+      div.className = "empty";
+      div.textContent = "No activity notes recorded.";
+      notesContent.appendChild(div);
+    } else {
+      lines.forEach((line) => {
+        const div = document.createElement("div");
+        div.textContent = line;
+        notesContent.appendChild(div);
+      });
+    }
+    notesModal.hidden = false;
+    notesModal.removeAttribute("hidden");
+    document.body.classList.add("modal-open");
+  };
+
+  const closeNotesModal = () => {
+    if (!notesModal) {
+      return;
+    }
+    notesModal.hidden = true;
+    notesModal.setAttribute("hidden", "hidden");
+    if (!modalBackdrop || modalBackdrop.hidden) {
+      document.body.classList.remove("modal-open");
+    }
+  };
+
+  document.querySelectorAll(".copy-cell").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const raw = button.dataset.copyComments || "";
+      let lines = [];
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            lines = parsed.map((line) => String(line).trim()).filter(Boolean);
+          }
+        } catch (error) {
+          lines = raw
+            .split("|")
+            .map((line) => line.trim())
+            .filter(Boolean);
+        }
+      }
+      const text = lines.join("\n");
+      if (!text) {
+        showToast("No activity to copy");
+        return;
+      }
+      const success = await copyToClipboard(text);
+      showToast(success ? "Activity copied" : "Copy unavailable");
     });
   });
 
   document.querySelectorAll(".comment-toggle").forEach((button) => {
     button.addEventListener("click", () => {
-      if (!commentPanel || !commentContent) {
+      if (!notesModal) {
         return;
       }
       const comments = button.dataset.comments || "";
-      const lines = comments
-        .split("|")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      if (lines.length === 0) {
-        commentContent.innerHTML = '<div class="empty">No activity notes recorded.</div>';
-      } else {
-        commentContent.innerHTML = lines.map((line) => `<div>- ${line}</div>`).join("");
+      let lines = [];
+      if (comments) {
+        try {
+          const parsed = JSON.parse(comments);
+          if (Array.isArray(parsed)) {
+            lines = parsed.map((line) => String(line).trim()).filter(Boolean);
+          }
+        } catch (error) {
+          lines = comments
+            .split("|")
+            .map((line) => line.trim())
+            .filter(Boolean);
+        }
       }
-      commentPanel.hidden = false;
-      commentPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const dayLabel = button.dataset.dayLabel || "";
+      const chargeLabel = button.dataset.chargeLabel || "";
+      const modalHeader = [chargeLabel, dayLabel].filter(Boolean).join(" · ") || "Activity Notes";
+      openNotesModal(modalHeader, lines);
     });
   });
 
-  if (commentClose) {
-    commentClose.addEventListener("click", () => {
-      if (commentPanel) {
-        commentPanel.hidden = true;
+  if (notesClose) {
+    notesClose.addEventListener("click", () => closeNotesModal());
+  }
+
+  if (notesModal) {
+    notesModal.addEventListener("click", (event) => {
+      if (event.target === notesModal) {
+        closeNotesModal();
       }
     });
   }

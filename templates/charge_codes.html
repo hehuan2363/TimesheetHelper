@@ -16,6 +16,10 @@
             Description
             <input type="text" name="description" required>
         </label>
+        <label class="checkbox-label">
+            <input type="checkbox" name="is_active" checked>
+            <span>Active</span>
+        </label>
         <button type="submit" class="btn primary">Add Charge Code</button>
     </form>
 </section>
@@ -29,14 +33,35 @@
                 <th>Project</th>
                 <th>Task</th>
                 <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for code in charge_codes %}
-            <tr>
+            <tr class="{% if not code['is_active'] %}inactive-row{% endif %}">
                 <td>{{ code['project_number'] }}</td>
                 <td>{{ code['task_number'] }}</td>
                 <td>{{ code['description'] }}</td>
+                <td>
+                    {% if code['is_active'] %}
+                    <span class="status active">Active</span>
+                    {% else %}
+                    <span class="status inactive">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="post" class="inline-form">
+                        <input type="hidden" name="action" value="toggle">
+                        <input type="hidden" name="code_id" value="{{ code['id'] }}">
+                        <input type="hidden" name="set_active" value="{% if code['is_active'] %}0{% else %}1{% endif %}">
+                        {% if code['is_active'] %}
+                        <button type="submit" class="btn small tertiary">Set Inactive</button>
+                        {% else %}
+                        <button type="submit" class="btn small secondary">Set Active</button>
+                        {% endif %}
+                    </form>
+                </td>
             </tr>
             {% endfor %}
         </tbody>

@@ -25,6 +25,19 @@ DATABASE_PATH = BASE_DIR / "timesheet.db"
 DEFAULT_CALENDAR_SLOT_MINUTES = 30
 DEFAULT_CALENDAR_SLOT_HEIGHT = 24
 
+CHARGE_COLOR_CLASSES = [
+    "charge-color-0",
+    "charge-color-1",
+    "charge-color-2",
+    "charge-color-3",
+    "charge-color-4",
+    "charge-color-5",
+    "charge-color-6",
+    "charge-color-7",
+    "charge-color-8",
+    "charge-color-9",
+]
+
 
 def minutes_to_label(total_minutes: int) -> str:
     minutes = int(total_minutes)
@@ -100,6 +113,7 @@ def init_db() -> None:
                 project_number TEXT NOT NULL,
                 task_number TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
+                is_active INTEGER NOT NULL DEFAULT 1,
                 UNIQUE(user_id, project_number, task_number),
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
             );
@@ -121,6 +135,10 @@ def init_db() -> None:
             """
         )
         conn.commit()
+        try:
+            conn.execute("ALTER TABLE charge_codes ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+        except sqlite3.OperationalError:
+            pass
     finally:
         conn.close()
 
@@ -206,16 +224,39 @@ def register_routes(app: Flask) -> None:
 
         week_start, week_end = calculate_week_bounds(anchor_date)
         entries = fetch_time_entries(g.user["id"], week_start, week_end)
-        grouped = group_entries_for_calendar(entries)
+
+        raw_codes = list_charge_codes(g.user["id"])
+        color_count = len(CHARGE_COLOR_CLASSES) or 1
+        charge_color_map: Dict[int, str] = {}
+        active_charge_codes = []
+        for index, row in enumerate(raw_codes):
+            color_class = CHARGE_COLOR_CLASSES[index % color_count]
+            charge_color_map[row["id"]] = color_class
+            if row["is_active"]:
+                active_charge_codes.append(
+                    {
+                        "id": row["id"],
+                        "project_number": row["project_number"],
+                        "task_number": row["task_number"],
+                        "description": row["description"],
+                        "color_class": color_class,
+                    }
+                )
+
+        display_start_minutes = 7 * 60
+        display_end_minutes = 18 * 60
+        slot_minutes = DEFAULT_CALENDAR_SLOT_MINUTES
+        grouped = group_entries_for_calendar(
+            entries,
+            charge_color_map,
+            window_start=display_start_minutes,
+            window_end=display_end_minutes,
+        )
         overview = build_week_overview(entries, week_start, week_end)
-        charge_codes = list_charge_codes(g.user["id"])
         week_days = [week_start + timedelta(days=i) for i in range(7)]
         prev_week = week_start - timedelta(days=7)
         next_week = week_start + timedelta(days=7)
         today = date.today()
-        slot_minutes = DEFAULT_CALENDAR_SLOT_MINUTES
-        display_start_minutes = 7 * 60
-        display_end_minutes = 18 * 60
         time_slots = list(range(display_start_minutes, display_end_minutes, slot_minutes))
         slot_count = len(time_slots)
 
@@ -226,7 +267,7 @@ def register_routes(app: Flask) -> None:
             week_end=week_end,
             calendar_entries=grouped,
             overview=overview,
-            charge_codes=charge_codes,
+            charge_codes=active_charge_codes,
             week_days=week_days,
             anchor_date=anchor_date,
             prev_week=prev_week,
@@ -236,6 +277,7 @@ def register_routes(app: Flask) -> None:
             calendar_slot_minutes=slot_minutes,
             slot_count=slot_count,
             slot_height=DEFAULT_CALENDAR_SLOT_HEIGHT,
+            display_start_minutes=display_start_minutes,
         )
 
     @app.route("/charge-codes", methods=["GET", "POST"])
@@ -244,9 +286,26 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("login"))
 
         if request.method == "POST":
+            action = request.form.get("action", "create")
+            if action == "toggle":
+                try:
+                    code_id = int(request.form.get("code_id", ""))
+                    new_status = int(request.form.get("set_active", "1"))
+                except ValueError:
+                    flash("Invalid request.", "error")
+                else:
+                    g.db.execute(
+                        "UPDATE charge_codes SET is_active = ? WHERE id = ? AND user_id = ?",
+                        (1 if new_status else 0, code_id, g.user["id"]),
+                    )
+                    g.db.commit()
+                    flash("Charge code status updated.", "success")
+                return redirect(url_for("charge_codes"))
+
             project_number = request.form.get("project_number", "").strip()
             task_number = request.form.get("task_number", "").strip()
             description = request.form.get("description", "").strip()
+            is_active = 1 if request.form.get("is_active") else 0
 
             error = None
             if not project_number:
@@ -263,10 +322,10 @@ def register_routes(app: Flask) -> None:
             else:
                 g.db.execute(
                     """
-                    INSERT INTO charge_codes (user_id, project_number, task_number, description)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO charge_codes (user_id, project_number, task_number, description, is_active)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (g.user["id"], project_number, task_number, description),
+                    (g.user["id"], project_number, task_number, description, is_active),
                 )
                 g.db.commit()
                 flash("Charge code added.", "success")
@@ -286,6 +345,7 @@ def register_routes(app: Flask) -> None:
                 "project_number": row["project_number"],
                 "task_number": row["task_number"],
                 "description": row["description"],
+                "is_active": row["is_active"],
             }
             for row in rows
         ]
@@ -543,7 +603,7 @@ def fetch_time_entries(user_id: int, start: date, end: date) -> List[EntryDTO]:
 def list_charge_codes(user_id: int):
     rows = g.db.execute(
         """
-        SELECT id, project_number, task_number, description
+        SELECT id, project_number, task_number, description, is_active
         FROM charge_codes
         WHERE user_id = ?
         ORDER BY project_number, task_number
@@ -665,11 +725,24 @@ def calculate_week_bounds(anchor: date) -> Tuple[date, date]:
     return start, end
 
 
-def group_entries_for_calendar(entries: List[EntryDTO]) -> Dict[str, List[Dict[str, object]]]:
+def group_entries_for_calendar(
+    entries: List[EntryDTO],
+    color_lookup: Optional[Dict[int, str]] = None,
+    window_start: int = 0,
+    window_end: int = 24 * 60,
+) -> Dict[str, List[Dict[str, object]]]:
+    color_lookup = color_lookup or {}
     grouped: Dict[str, List[Dict[str, object]]] = {}
     for entry in entries:
         day_entries = grouped.setdefault(entry.entry_date, [])
         start_minutes = time_to_minutes(entry.start_time)
+        entry_end = start_minutes + entry.duration_minutes
+        if entry_end <= window_start or start_minutes >= window_end:
+            continue
+        clamped_start = max(start_minutes, window_start)
+        clamped_end = min(entry_end, window_end)
+        relative_start = clamped_start - window_start
+        relative_duration = max(clamped_end - clamped_start, 1)
         day_entries.append(
             {
                 "id": entry.id,
@@ -681,7 +754,10 @@ def group_entries_for_calendar(entries: List[EntryDTO]) -> Dict[str, List[Dict[s
                 "charge_code_label": entry.charge_code_label,
                 "duration_minutes": entry.duration_minutes,
                 "start_minutes": start_minutes,
-                "end_minutes": start_minutes + entry.duration_minutes,
+                "end_minutes": entry_end,
+                "relative_start_minutes": relative_start,
+                "relative_duration_minutes": relative_duration,
+                "color_class": color_lookup.get(entry.charge_code_id, "charge-color-default"),
             }
         )
     return grouped
@@ -723,4 +799,4 @@ def build_week_overview(entries: List[EntryDTO], week_start: date, week_end: dat
 
 if __name__ == "__main__":
     application = create_app()
-    application.run(debug=True, host="0.0.0.0", port=5000)
+    application.run(debug=True, host="0.0.0.0", port=5001)

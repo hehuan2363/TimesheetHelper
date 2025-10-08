@@ -48,9 +48,9 @@ a:hover {
 }
 
 .app-container {
-    max-width: 1100px;
+    max-width: 1350px;
     margin: 2rem auto;
-    padding: 0 1rem 3rem;
+    padding: 0 1.5rem 3rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -112,6 +112,18 @@ a:hover {
 .form-actions {
     display: flex;
     gap: 0.75rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
 }
 
 .btn {
@@ -212,14 +224,15 @@ a:hover {
 }
 
 .calendar-scroll {
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     max-height: 640px;
     position: relative;
 }
 
 .calendar-grid {
     display: grid;
-    grid-template-columns: 68px repeat(7, minmax(150px, 1fr));
+    grid-template-columns: 72px repeat(7, minmax(170px, 1fr));
     gap: 0.75rem;
     align-items: flex-start;
     position: relative;
@@ -231,7 +244,7 @@ a:hover {
     z-index: 2;
     background: #f4f5f8;
     display: grid;
-    grid-template-columns: 68px repeat(7, minmax(150px, 1fr));
+    grid-template-columns: 72px repeat(7, minmax(170px, 1fr));
     gap: 0.75rem;
     padding-bottom: 0.5rem;
 }
@@ -343,6 +356,7 @@ body.calendar-selecting {
     border: none;
     background: transparent;
     cursor: pointer;
+    color: #1f2937;
     font-size: 1.1rem;
     line-height: 1;
     padding: 0.15rem 0.2rem;
@@ -360,6 +374,14 @@ body.calendar-selecting {
     outline-offset: 2px;
 }
 
+.icon-btn .icon-img {
+    width: 16px;
+    height: 16px;
+    display: block;
+    color: inherit;
+}
+
+
 .entries-layer {
     pointer-events: none;
     position: absolute;
@@ -370,21 +392,23 @@ body.calendar-selecting {
     position: absolute;
     left: 6px;
     right: 6px;
-    border-radius: 8px;
-    background: rgba(37, 99, 235, 0.12);
-    border-left: 3px solid #2563eb;
-    padding: 0.6rem 0.5rem 0.5rem 0.65rem;
+    border-radius: 10px;
+    background: var(--entry-bg, #dbeafe);
+    border-left: 4px solid var(--entry-accent, #2563eb);
+    padding: 0.55rem 0.6rem 0.45rem 0.8rem;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.3rem;
     box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18);
     pointer-events: auto;
     min-height: calc(var(--slot-height) * 0.75);
+    color: #111827;
 }
 
 .entry-block header {
     display: flex;
     justify-content: space-between;
+    align-items: baseline;
     font-weight: 600;
     font-size: 0.85rem;
 }
@@ -394,28 +418,94 @@ body.calendar-selecting {
     color: #1f2937;
 }
 
-.entry-block .charge {
-    color: #1f2937;
-    font-weight: 500;
-    font-size: 0.85rem;
-}
-
-.entry-block .activity {
-    margin: 0;
-    color: #374151;
-    font-size: 0.85rem;
-}
-
 .entry-actions {
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
 }
 
+.entry-actions .btn {
+    pointer-events: auto;
+}
+
+.charge-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 0.1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #374151;
+}
+
+.legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 2px solid rgba(15, 23, 42, 0.25);
+}
+
+.legend-label {
+    white-space: normal;
+}
+
+.charge-color-default {
+    --entry-bg: #e5e7eb;
+    --entry-accent: #6b7280;
+}
+
+.charge-color-0 { --entry-bg: #dbeafe; --entry-accent: #2563eb; }
+.charge-color-1 { --entry-bg: #fce7f3; --entry-accent: #db2777; }
+.charge-color-2 { --entry-bg: #dcfce7; --entry-accent: #16a34a; }
+.charge-color-3 { --entry-bg: #fef3c7; --entry-accent: #d97706; }
+.charge-color-4 { --entry-bg: #ede9fe; --entry-accent: #7c3aed; }
+.charge-color-5 { --entry-bg: #fee2e2; --entry-accent: #ef4444; }
+.charge-color-6 { --entry-bg: #cffafe; --entry-accent: #0891b2; }
+.charge-color-7 { --entry-bg: #f1f5f9; --entry-accent: #475569; }
+.charge-color-8 { --entry-bg: #fcefc7; --entry-accent: #ea580c; }
+.charge-color-9 { --entry-bg: #e0f2f1; --entry-accent: #0f766e; }
+
+.legend-swatch.charge-color-0 { background: #2563eb; }
+.legend-swatch.charge-color-1 { background: #db2777; }
+.legend-swatch.charge-color-2 { background: #16a34a; }
+.legend-swatch.charge-color-3 { background: #d97706; }
+.legend-swatch.charge-color-4 { background: #7c3aed; }
+.legend-swatch.charge-color-5 { background: #ef4444; }
+.legend-swatch.charge-color-6 { background: #0891b2; }
+.legend-swatch.charge-color-7 { background: #475569; }
+.legend-swatch.charge-color-8 { background: #ea580c; }
+.legend-swatch.charge-color-9 { background: #0f766e; }
+.legend-swatch.charge-color-default { background: #6b7280; }
+
 .cell-actions {
     display: flex;
     gap: 0.25rem;
     margin-top: 0.35rem;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.status.active {
+    color: #15803d;
+    font-weight: 600;
+}
+
+.status.inactive {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.inactive-row {
+    background: #f8fafc;
 }
 
 .btn.tertiary {
@@ -458,32 +548,6 @@ body.calendar-selecting {
 .data-table .total,
 .data-table tfoot th:last-child {
     font-weight: 600;
-}
-
-.comment-drawer {
-    margin-top: 1rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    background: #f8fafc;
-    padding: 1rem;
-}
-
-.comment-drawer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-}
-
-.comment-drawer-body {
-    color: #1f2937;
-    font-size: 0.95rem;
-    line-height: 1.4;
-    white-space: pre-line;
-}
-
-.comment-drawer-body .empty {
-    color: #6b7280;
 }
 
 @media (max-width: 720px) {
@@ -541,6 +605,10 @@ body.calendar-selecting {
     box-shadow: 0 25px 55px rgba(15, 23, 42, 0.25);
 }
 
+.modal.modal-notes {
+    max-width: 420px;
+}
+
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -559,4 +627,23 @@ body.calendar-selecting {
 
 body.modal-open {
     overflow: hidden;
+}
+
+.notes-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    color: #1f2937;
+    max-height: 320px;
+    overflow-y: auto;
+    white-space: pre-line;
+}
+
+.notes-content .empty {
+    color: #6b7280;
+}
+
+.notes-content div {
+    line-height: 1.4;
 }
