@@ -403,6 +403,13 @@ body.calendar-selecting {
     pointer-events: auto;
     min-height: calc(var(--slot-height) * 0.75);
     color: #111827;
+    z-index: 1;
+}
+
+.entry-block:hover,
+.entry-block:focus-within {
+    z-index: 2;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.22);
 }
 
 .entry-block header {
@@ -591,8 +598,8 @@ body.calendar-selecting {
     background: rgba(17, 24, 39, 0.45);
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding: 4rem 1rem;
+    align-items: center;
+    padding: 2.5rem 1rem;
     z-index: 100;
     overflow-y: auto;
 }
@@ -604,8 +611,7 @@ body.calendar-selecting {
 .modal {
     background: #ffffff;
     border-radius: 12px;
-    max-width: 460px;
-    width: 100%;
+    width: min(520px, calc(100vw - 2rem));
     box-shadow: 0 25px 55px rgba(15, 23, 42, 0.25);
 }
 
@@ -627,6 +633,22 @@ body.calendar-selecting {
 
 .modal-body form {
     gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.modal-body label {
+    min-width: 0;
+}
+
+.modal-body .form-actions,
+.modal-body .full-width {
+    grid-column: 1 / -1;
+}
+
+.modal-body .form-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 body.modal-open {
